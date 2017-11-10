@@ -1,0 +1,8 @@
+{
+	"DbConfigs" : 
+	[
+		{"host":"192.168.1.144", "desc":"192.168.1.144", "port":3306, "user":"root", "password":"hfwl@2017"},
+		{"host":"192.168.1.33", "desc":"192.168.1.33", "port":3306, "user":"root", "password":"hfwl@2017"}
+	],
+	"User" : {"name":"laiwenlong"}
+}
