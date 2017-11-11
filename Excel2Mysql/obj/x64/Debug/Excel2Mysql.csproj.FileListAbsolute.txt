@@ -26,3 +26,6 @@ E:\excel2mysql\Excel2Mysql\obj\x64\Debug\Excel2Mysql.csprojResolveAssemblyRefere
 E:\excel2mysql\Excel2Mysql\obj\x64\Debug\Excel2Mysql.Main.resources
 E:\excel2mysql\Excel2Mysql\obj\x64\Debug\Excel2Mysql.Properties.Resources.resources
 E:\excel2mysql\Excel2Mysql\obj\x64\Debug\Excel2Mysql.csproj.GenerateResource.Cache
+E:\company2\excel2mysql\Excel2Mysql\obj\x64\Debug\Excel2Mysql.csprojResolveAssemblyReference.cache
+E:\company2\excel2mysql\Excel2Mysql\obj\x64\Debug\Excel2Mysql.exe
+E:\company2\excel2mysql\Excel2Mysql\obj\x64\Debug\Excel2Mysql.pdb
