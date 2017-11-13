@@ -91,7 +91,7 @@ namespace Excel2Mysql.util
             }
             List<string> tblNames = null;
             QueryAllTableNames(out tblNames);
-            if(tblNames.Count == 0)
+            if (tblNames.Count == 0 || (tblNames.Count == 1 && tblNames[0] == LOCK_TABLE))
             {
                 MessageBox.Show("数据库：" + DATABASE + "没有任何表", "下载表");
                 return;
@@ -196,14 +196,6 @@ namespace Excel2Mysql.util
             }
             try
             {
-                //每次都查一下锁表是否存在
-                List<string> tblNames = null;
-                QueryTableNames(LOCK_TABLE, out tblNames);
-                if (tblNames.Count == 0)
-                {
-                    InitTableLock();
-                }
-
                 string sql = "SELECT * FROM " + LOCK_TABLE + " WHERE " + LOCK_TABLENAME + " in (";
                 for (int i = 0; i < checkTbl.Count; i++)
                 {
@@ -243,11 +235,51 @@ namespace Excel2Mysql.util
             return false;
         }
 
+        public void QueryMyLockTbl(out List<string> retTbl)
+        {
+            retTbl = new List<string>();
+            if (!ConnectToDB())
+            {
+                MessageBox.Show("数据库连接失败, ErrCode = 4", "失败");
+                return;
+            }
+            try
+            {
+                //每次都查一下锁表是否存在
+                List<string> tblNames = null;
+                QueryTableNames(LOCK_TABLE, out tblNames);
+                if (tblNames.Count == 0)
+                {
+                    InitTableLock();
+                }
+
+                string sql = "SELECT * FROM " + LOCK_TABLE + " WHERE " + LOCK_USER + " = '" + UserName + "' AND " + LOCK_ISLOCK + " = " + LOCK_STATUS;
+                MySqlCommand cmd = new MySqlCommand();
+                cmd.CommandText = sql;
+                cmd.CommandType = CommandType.Text;
+                cmd.Connection = conn;
+                DbDataReader reader = cmd.ExecuteReader();
+                if (reader.HasRows)
+                {
+                    while (reader.Read())
+                    {
+                        retTbl.Add(reader[LOCK_TABLENAME].ToString());
+                    }
+                }
+                reader.Close();
+                cmd.Dispose();
+            }
+            catch (Exception err)
+            {
+                MessageBox.Show(err.Message, "查询我的锁表");
+            }
+        }
+
         public bool UpdateTableLock(List<string> updateList, bool isLock)
         {
             if (!ConnectToDB())
             {
-                MessageBox.Show("数据库连接失败, ErrCode = 4", "失败");
+                MessageBox.Show("数据库连接失败, ErrCode = 5", "失败");
                 return false;
             }
             try

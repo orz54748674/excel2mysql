@@ -69,7 +69,7 @@
             this.fileList.FormattingEnabled = true;
             this.fileList.Location = new System.Drawing.Point(9, 5);
             this.fileList.Name = "fileList";
-            this.fileList.Size = new System.Drawing.Size(425, 244);
+            this.fileList.Size = new System.Drawing.Size(396, 244);
             this.fileList.TabIndex = 3;
             this.fileList.MouseDown += new System.Windows.Forms.MouseEventHandler(this.list_MouseDown);
             // 
@@ -165,7 +165,7 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.SystemColors.Window;
-            this.ClientSize = new System.Drawing.Size(441, 369);
+            this.ClientSize = new System.Drawing.Size(413, 364);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.dbList);
             this.Controls.Add(this.updateLabel);

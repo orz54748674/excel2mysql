@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Timers;
 using System.Drawing;
+using System.IO;
+using System.Text.RegularExpressions;
 
 namespace Excel2Mysql
 {
@@ -22,19 +24,6 @@ namespace Excel2Mysql
             InitializeComponent();
         }
 
-        private void fileDragDrop(object sender, DragEventArgs e)
-        {
-            if (lockStatus)
-            {
-                return;
-            }
-            string[] filePath = (string[])e.Data.GetData(DataFormats.FileDrop);
-            foreach (string file in filePath)
-            {
-                addExeclFile(file);
-            }
-        }
-
         private void mainLoad(object sender, EventArgs e)
         {
             //配置文件
@@ -44,25 +33,37 @@ namespace Excel2Mysql
                 if (!System.IO.File.Exists("config.json"))
                 {
                     exit = true;
-                    MessageBox.Show("配置文件不存在", "加载配置文件config.json");
+                    MessageBox.Show("配置文件不存在", "加载config.json");
                 }
-                entity.JsConfig jsConfig = util.Json.parse<entity.JsConfig>(System.IO.File.ReadAllText("config.json"));
-                mysql.UserName = jsConfig.User.name;
-                dbConfigs = jsConfig.DbConfigs;
-                for (int i = 0; i < dbConfigs.Length; i++)
+                else
                 {
-                    dbList.Items.Add(dbConfigs[i].desc);
+                    entity.JsConfig jsConfig = util.Json.parse<entity.JsConfig>(System.IO.File.ReadAllText("config.json"));
+                    if (jsConfig.User == null || jsConfig.DbConfigs == null)
+                    {
+                        exit = true;
+                        MessageBox.Show("配置文件错误", "加载config.json");
+                    }
+                    else
+                    {
+                        mysql.UserName = jsConfig.User.name;
+                        dbConfigs = jsConfig.DbConfigs;
+                        for (int i = 0; i < dbConfigs.Length; i++)
+                        {
+                            dbList.Items.Add(dbConfigs[i].desc);
+                        }
+                        dbList.SelectedIndex = -1;
+                    }
                 }
-                dbList.SelectedIndex = -1;
             }
             catch (Exception err)
             {
                 exit = true;
                 MessageBox.Show(err.Message, "加载配置文件出错");
             }
-            if (exit)
+            if (exit || !checkUserName())
             {
                 System.Environment.Exit(0);
+                return;
             }
 
             //进度设置
@@ -87,6 +88,19 @@ namespace Excel2Mysql
             };
         }
 
+        private void fileDragDrop(object sender, DragEventArgs e)
+        {
+            if (lockStatus)
+            {
+                return;
+            }
+            string[] filePath = (string[])e.Data.GetData(DataFormats.FileDrop);
+            foreach (string file in filePath)
+            {
+                addExeclFile(file);
+            }
+        }
+
         private void formCloseUnlockTable(object sender, FormClosedEventArgs e)
         {
             unlockTable();
@@ -97,6 +111,7 @@ namespace Excel2Mysql
             if (dbConfigs.Length != 0 && dbList.SelectedIndex != -1)
             {
                 mysql.dbConfig = dbConfigs[dbList.SelectedIndex];
+                loadMyLockTbl();
             }
         }
 
@@ -370,6 +385,12 @@ namespace Excel2Mysql
                 btnLock.Text = "解锁";
                 btnDownload.Enabled = false;
             }
+            else if (code == 2)
+            {
+                btnLock.Text = "解锁";
+                btnDownload.Enabled = false;
+                btnUpload.Enabled = false;
+            }
         }
 
         private void unlockAllBtn(int code)
@@ -396,7 +417,10 @@ namespace Excel2Mysql
         {
             if (myLockList.Count > 0)
             {
-                mysql.UpdateTableLock(myLockList, false);
+                if (mysql.UpdateTableLock(myLockList, false))
+                {
+                    myLockList.Clear();
+                }
             }
         }
 
@@ -415,6 +439,48 @@ namespace Excel2Mysql
             if (mysql.dbConfig == null)
             {
                 MessageBox.Show("设置数据库配置失败！", "提示");
+                return false;
+            }
+            return true;
+        }
+
+        private void loadMyLockTbl()
+        {
+            List<string> retTbl = null;
+            mysql.QueryMyLockTbl(out retTbl);
+            if (retTbl.Count == 0)
+            {
+                return;
+            }
+
+            //处理方式一：上次没有解锁的直接解锁
+            myLockList.Clear();
+            myLockList = new List<string>(retTbl.ToArray());
+            unlockTable();
+
+            //处理方式二
+            //for (int i = 0; i < retTbl.Count; i++)
+            //{
+            //    fileList.Items.Add(retTbl[i]);
+            //    fileList.SetItemChecked(fileList.Items.Count - 1, true);
+            //}
+            //myLockList.Clear();
+            //myLockList = new List<string>(retTbl.ToArray());
+            //lockAllBtn(2);
+        }
+
+        private bool checkUserName()
+        {
+            if (mysql.UserName == "")
+            {
+                MessageBox.Show("用户名不能为空", "提示");
+                return false;
+            }
+            string pattern = @"^[a-zA-Z]*$";
+            Regex regex = new Regex(pattern);
+            if (!regex.IsMatch(mysql.UserName))
+            {
+                MessageBox.Show("用户名只能包含字母：" + mysql.UserName, "提示");
                 return false;
             }
             return true;
