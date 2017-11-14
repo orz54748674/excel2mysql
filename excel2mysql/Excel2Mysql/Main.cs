@@ -134,6 +134,7 @@ namespace Excel2Mysql
         private void btnOpen_Click(object sender, EventArgs e)
         {
             OpenFileDialog dialog = new OpenFileDialog();
+            dialog.InitialDirectory = Environment.CurrentDirectory;
             dialog.Multiselect = true;//该值确定是否可以选择多个文件
             dialog.Title = "请选择Excel文件";
             dialog.Filter = "Excel文件(*.xls,*.xlsx,*.xlsm)|*.xls;*.xlsx;*.xlsm";
