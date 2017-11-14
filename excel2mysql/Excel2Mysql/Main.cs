@@ -248,6 +248,7 @@ namespace Excel2Mysql
             lockAllBtn(0);
             setFunc(checkCount);
             int failCnt = 0;
+            int skipCnt = 0;
             string emptyStr = "";
             for (int i = 0; i < fileList.Items.Count; i++)
             {
@@ -262,17 +263,18 @@ namespace Excel2Mysql
                         fileList.SetItemChecked(i, fileList.GetItemChecked(i) != true);
                         if (errMsg == "data empty")
                         {
-                            failCnt++;
+                            skipCnt++;
                             emptyStr += "\t" + tblName + "\n";
                         }
                         else
                         {
+                            failCnt++;
                             MessageBox.Show(errMsg, tblName);
                         }
                     }
                 }
             }
-            string result = "上传完成，总数：" + checkCount + "，成功：" + (checkCount - failCnt) + "，失败：" + failCnt;
+            string result = "上传完成，总数：" + checkCount + "，成功：" + (checkCount - failCnt - skipCnt) + "，失败：" + failCnt + "，未处理：" + skipCnt;
             if (emptyStr != "")
             {
                 result += "\n自动跳过无数据的表：\n" + emptyStr;

@@ -121,15 +121,20 @@ namespace Excel2Mysql.util
                     adapter.Fill(dt);
                     adapter.Dispose();
 
-                    //查表的字段注释
-                    Dictionary<string, string> columnInfo = new Dictionary<string, string>();
-                    cmd.CommandText = "SELECT COLUMN_NAME,COLUMN_COMMENT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '" + tblNames[i] + "' and TABLE_SCHEMA = '" + DATABASE + "'";
+                    //查表的字段信息
+                    Dictionary<string, List<string>> columnInfo = new Dictionary<string, List<string>>();
+                    cmd.CommandText = "SELECT COLUMN_NAME,COLUMN_TYPE,COLUMN_KEY,COLUMN_COMMENT,EXTRA FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '" + tblNames[i] + "' and TABLE_SCHEMA = '" + DATABASE + "'";
                     DbDataReader reader2 = cmd.ExecuteReader();
                     if (reader2.HasRows)
                     {
                         while (reader2.Read())
                         {
-                            columnInfo.Add(reader2["COLUMN_NAME"].ToString(), reader2["COLUMN_COMMENT"].ToString());
+                            List<string> detail = new List<string>();
+                            detail.Add(reader2["COLUMN_TYPE"].ToString());
+                            detail.Add(reader2["COLUMN_KEY"].ToString());
+                            detail.Add(reader2["EXTRA"].ToString());
+                            detail.Add(reader2["COLUMN_COMMENT"].ToString());
+                            columnInfo.Add(reader2["COLUMN_NAME"].ToString(), detail);
                         }
                         reader2.Close();
                     }
@@ -162,6 +167,10 @@ namespace Excel2Mysql.util
                 return;
             }
             string tableName = System.IO.Path.GetFileNameWithoutExtension(filePath);
+            if (!CheckTableByName(tableName))
+            {
+                CreateTblByDataset(tableName, excelDataSet);
+            }
             string query = createSql(excelDataSet, tableName);
             if (query == "")
             {
@@ -246,9 +255,7 @@ namespace Excel2Mysql.util
             try
             {
                 //每次都查一下锁表是否存在
-                List<string> tblNames = null;
-                QueryTableNames(LOCK_TABLE, out tblNames);
-                if (tblNames.Count == 0)
+                if (!CheckTableByName(LOCK_TABLE))
                 {
                     InitTableLock();
                 }
@@ -333,9 +340,18 @@ namespace Excel2Mysql.util
                     MessageBox.Show("没有找到任何表", "初始化锁表");
                     return;
                 }
+                //只有锁表本身
+                if (tblNames.Count == 1 && tblNames[0] == LOCK_TABLE)
+                {
+                    return;
+                }
                 sql = "INSERT INTO " + LOCK_TABLE + " (" + LOCK_TABLENAME + ", " + LOCK_USER + ", " + LOCK_ISLOCK + ") VALUES ";
                 for (int i = 0; i < tblNames.Count; i++)
                 {
+                    if (tblNames[i] == LOCK_TABLE)
+                    {
+                        continue;
+                    }
                     if (i != 0)
                     {
                         sql += ",";
@@ -371,7 +387,7 @@ namespace Excel2Mysql.util
             {
                 return "";
             }
-            if (dataTbl.Rows.Count <= 2)
+            if (dataTbl.Rows.Count <= 3)
             {
                 return "data empty";
             }
@@ -390,18 +406,36 @@ namespace Excel2Mysql.util
             List<string> sqlItems = new List<string>();
             for (int i = 2; i < dataTbl.Rows.Count; i++)
             {
+                if (i == 2) //跳过注释，注释肯定不能插入表数据
+                {
+                    continue;
+                }
                 if (string.IsNullOrEmpty(dataTbl.Rows[i][0].ToString()))
                 {
                     break;
                 }
-
                 List<string> sqlItem = new List<string>();
-
                 for (int j = 0; j < sqlKeys.Count; j++)
                 {
-                    sqlItem.Add("'" + dataTbl.Rows[i][sqlKeyIndexs[j]].ToString().Replace("'", "''") + "'");
+                    string columnType = dataTbl.Rows[1][sqlKeyIndexs[j]].ToString();
+                    string columnValue = dataTbl.Rows[i][sqlKeyIndexs[j]].ToString().Replace("'", "''");
+                    string value = columnValue;
+                    if (columnType.Contains("time") && !columnType.Contains("timestamp"))
+                    {
+                        value = value.Split(' ')[1]; //时间格式time读出来被加日期了，只好这样特殊处理
+                    }
+                    //不加引号的数据
+                    if (!columnType.Contains("int")
+                        && !columnType.Contains("bigint")
+                        && !columnType.Contains("tinyint")
+                        && !columnType.Contains("float")
+                        && !columnType.Contains("double")
+                        && !columnType.Contains("decimal"))
+                    {
+                        value = "'" + value + "'";
+                    }
+                    sqlItem.Add(value);
                 }
-
                 sqlItems.Add("(" + string.Join(",", sqlItem.ToArray()) + ")");
             }
             return "TRUNCATE TABLE `" + dbTableName + "`;\nINSERT INTO `" + dbTableName + "` (" +
@@ -435,9 +469,9 @@ namespace Excel2Mysql.util
             }
         }
 
-        public void QueryTableNames(string tableName, out List<string> queryResult)
+        public bool CheckTableByName(string tableName)
         {
-            queryResult = new List<string>();
+            bool findTbl = false;
             try
             {
                 MySqlCommand cmd = new MySqlCommand();
@@ -447,11 +481,7 @@ namespace Excel2Mysql.util
                 DbDataReader reader = cmd.ExecuteReader();
                 if (reader.HasRows)
                 {
-                    while (reader.Read())
-                    {
-                        string tblName = reader["TABLE_NAME"].ToString();
-                        queryResult.Add(tblName);
-                    }
+                    findTbl = true;
                 }
                 reader.Close();
                 cmd.Dispose();
@@ -459,6 +489,73 @@ namespace Excel2Mysql.util
             catch (Exception err)
             {
                 MessageBox.Show(err.Message, "查询表：" + tableName);
+            }
+            return findTbl;
+        }
+
+        public void CreateTblByDataset(string tblName, DataSet execlDataSet)
+        {
+            try
+            {
+                DataTable dataTbl = execlDataSet.Tables[@"Sheet1"];
+                if (dataTbl == null || dataTbl.Rows.Count < 3)
+                {
+                    return;
+                }
+                List<string> priKeys = new List<string>();
+                string sql = "CREATE TABLE " + tblName + " (";
+                for (int i = 0; i < dataTbl.Columns.Count; i++)
+                {
+                    if (i != 0)
+                    {
+                        sql += ", ";
+                    }
+                    string columnName = dataTbl.Rows[0][i].ToString();
+                    string columnInfo = dataTbl.Rows[1][i].ToString();
+                    string columnComment = dataTbl.Rows[2][i].ToString();
+                    string[] arr = columnInfo.Split('|');
+                    string columnType = arr[0];
+                    if (columnType.Contains("timestamp("))
+                    {
+                        columnType = "timestamp";
+                    }
+                    sql += "`" + columnName + "` " + columnType + " NOT NULL ";
+                    if (arr.Count() > 1 && arr[1] == "PRI")
+                    {
+                        priKeys.Add(columnName);
+                    }
+                    if (arr.Count() > 2)
+                    {
+                        if (columnInfo.Contains("timestamp"))
+                        {
+                            //arr[2] == "on update CURRENT_TIMESTAMP"
+                            sql += "DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP ";
+                        }
+                        else
+                        {
+                            if (arr[2] == "auto_increment")
+                            {
+                                sql += "AUTO_INCREMENT ";
+                            }
+                        }
+                    }
+                    sql += "COMMENT '" + columnComment + "'";
+                }
+                if (priKeys.Count > 0)
+                {
+                    sql += ", PRIMARY KEY (" + string.Join(",", priKeys.ToArray()) + ")";
+                }
+                sql += ") ENGINE = InnoDB DEFAULT CHARSET = " + DB_CHARSET;
+                MySqlCommand cmd = new MySqlCommand();
+                cmd.CommandText = sql;
+                cmd.CommandType = CommandType.Text;
+                cmd.Connection = conn;
+                cmd.ExecuteNonQuery();
+                cmd.Dispose();
+            }
+            catch (Exception err)
+            {
+                MessageBox.Show(err.Message, "创建表：" + tblName);
             }
         }
     }

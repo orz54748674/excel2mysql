@@ -37,7 +37,7 @@ namespace Excel2Mysql.util
             return result;
         }
 
-        public void DataTabletoExcel(string fileName, System.Data.DataTable dt, Dictionary<string, string> columnInfo)
+        public void DataTabletoExcel(string fileName, System.Data.DataTable dt, Dictionary<string, List<string>> columnInfo)
         {
             int rowIndex = 1;
             int columnIndex = 0;
@@ -46,23 +46,27 @@ namespace Excel2Mysql.util
             app.DisplayAlerts = true;
             app.SheetsInNewWorkbook = 1;
             Microsoft.Office.Interop.Excel.Workbook xlBook = app.Workbooks.Add(true);
-            //将DataTable的列名导入Excel表第一行
+            //将DataTable的列名导入Excel表第一行，字段类型第二行，字段注释第三行
             foreach (DataColumn dc in dt.Columns)
             {
                 columnIndex++;
                 app.Cells[rowIndex, columnIndex] = dc.ColumnName;
+                string columnType = "";
                 string columnComment = "";
                 if (columnInfo.ContainsKey(dc.ColumnName))
                 {
-                    columnComment = columnInfo[dc.ColumnName];
+                    //字段类型|主键信息|自增信息
+                    columnType = columnInfo[dc.ColumnName][0] + "|" + columnInfo[dc.ColumnName][1] + "|" + columnInfo[dc.ColumnName][2];
+                    columnComment = columnInfo[dc.ColumnName][3];
                 }
                 if (columnComment == "")
                 {
-                    columnComment = "无注释";
+                    columnComment = "无";
                 }
-                app.Cells[rowIndex + 1, columnIndex] = columnComment;
+                app.Cells[rowIndex + 1, columnIndex] = columnType;
+                app.Cells[rowIndex + 2, columnIndex] = columnComment;
             }
-            rowIndex++;
+            rowIndex += 2;
             //将DataTable中的数据导入Excel中
             for (int i = 0; i < dt.Rows.Count; i++)
             {
