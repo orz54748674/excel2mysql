@@ -166,11 +166,12 @@ namespace Excel2Mysql.util
                 errMsg = mysqlError;
                 return;
             }
+
+            //存在旧表的话先删除再重新创建
             string tableName = System.IO.Path.GetFileNameWithoutExtension(filePath);
-            if (!CheckTableByName(tableName))
-            {
-                CreateTblByDataset(tableName, excelDataSet);
-            }
+            DropTableByName(tableName);
+            CreateTblByDataset(tableName, excelDataSet);
+
             string query = createSql(excelDataSet, tableName);
             if (query == "")
             {
@@ -491,6 +492,25 @@ namespace Excel2Mysql.util
                 MessageBox.Show(err.Message, "查询表：" + tableName);
             }
             return findTbl;
+        }
+
+        public bool DropTableByName(string tableName)
+        {
+            try
+            {
+                MySqlCommand cmd = new MySqlCommand();
+                cmd.Connection = conn;
+                cmd.CommandText = "DROP TABLE IF EXISTS " + tableName;
+                cmd.CommandType = CommandType.Text;
+                cmd.ExecuteNonQuery();
+                cmd.Dispose();
+                return true;
+            }
+            catch (Exception err)
+            {
+                MessageBox.Show(err.Message, "删除表：" + tableName);
+                return false;
+            }
         }
 
         public void CreateTblByDataset(string tblName, DataSet execlDataSet)
