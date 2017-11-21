@@ -327,7 +327,7 @@ namespace Excel2Mysql.util
             {
                 //创建锁表
                 MySqlCommand cmd = new MySqlCommand();
-                string sql = "CREATE TABLE " + LOCK_TABLE + " (" + LOCK_TABLENAME + " VARCHAR(255), " + LOCK_USER + " VARCHAR(255), " + LOCK_ISLOCK + " int(0))";
+                string sql = "CREATE TABLE " + LOCK_TABLE + " (id int UNSIGNED NOT NULL AUTO_INCREMENT, " + LOCK_TABLENAME + " VARCHAR(255), " + LOCK_USER + " VARCHAR(255), " + LOCK_ISLOCK + " int(0), PRIMARY KEY (id))";
                 cmd.CommandText = sql;
                 cmd.CommandType = CommandType.Text;
                 cmd.Connection = conn;
