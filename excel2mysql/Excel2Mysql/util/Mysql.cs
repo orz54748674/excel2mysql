@@ -221,6 +221,7 @@ namespace Excel2Mysql.util
                 cmd.CommandType = CommandType.Text;
                 cmd.Connection = conn;
                 DbDataReader reader = cmd.ExecuteReader();
+                List<string> emptyList = new List<string>(checkTbl);
                 if (reader.HasRows)
                 {
                     while (reader.Read())
@@ -232,9 +233,25 @@ namespace Excel2Mysql.util
                         {
                             retTbl[key] = lock_user;
                         }
+                        emptyList.Remove(key);
                     }
                 }
                 reader.Close();
+                if (emptyList.Count != 0)
+                {
+                    //不存在的插入
+                    sql = "INSERT INTO " + LOCK_TABLE + " (" + LOCK_TABLENAME + ", " + LOCK_USER + ", " + LOCK_ISLOCK + ") VALUES ";
+                    for (int i = 0; i < emptyList.Count; i++)
+                    {
+                        if (i != 0)
+                        {
+                            sql += ",";
+                        }
+                        sql += "('" + emptyList[i] + "', '', 0)";
+                    }
+                    cmd.CommandText = sql;
+                    cmd.ExecuteNonQuery();
+                }
                 cmd.Dispose();
                 return true;
             }
