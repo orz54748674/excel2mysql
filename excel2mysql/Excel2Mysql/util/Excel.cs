@@ -42,7 +42,12 @@ namespace Excel2Mysql.util
             int rowIndex = 1;
             int columnIndex = 0;
             Microsoft.Office.Interop.Excel.Application app = new Microsoft.Office.Interop.Excel.Application();
-            app.DefaultFilePath = System.IO.Path.GetDirectoryName(System.Windows.Forms.Application.ExecutablePath);
+            string curPath = System.IO.Path.GetDirectoryName(System.Windows.Forms.Application.ExecutablePath) + "\\excel\\";
+            if (!Directory.Exists(curPath))
+            {
+                Directory.CreateDirectory(curPath);
+            }
+            app.DefaultFilePath = curPath;
             app.DisplayAlerts = true;
             app.SheetsInNewWorkbook = 1;
             Microsoft.Office.Interop.Excel.Workbook xlBook = app.Workbooks.Add(true);
